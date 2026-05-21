@@ -2,7 +2,7 @@
 # Terraform
 # =============================================================================
 .terraform/
-.terraform.lock.hcl
+# .terraform.lock.hcl  — se recomienda commitear para reproducibilidad (ver: https://developer.hashicorp.com/terraform/language/files/dependency-lock)
 terraform.tfstate
 terraform.tfstate.backup
 terraform.tfstate.d/
