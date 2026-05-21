@@ -1,0 +1,47 @@
+# =============================================================================
+# Terraform
+# =============================================================================
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.d/
+*.tfplan
+*.tfplan.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
+
+# Variables con datos reales (nunca commitear)
+terraform.tfvars
+*.auto.tfvars
+
+# Paquete ZIP generado por archive_file
+**/*.zip
+
+# =============================================================================
+# Certificados y claves privadas
+# =============================================================================
+*.key
+*.crt
+*.csr
+*.pem
+*.srl
+*.cnf
+
+# =============================================================================
+# Sistema operativo
+# =============================================================================
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# IDEs
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo

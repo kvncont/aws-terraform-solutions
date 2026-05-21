@@ -1,0 +1,43 @@
+{
+  "name": "Terraform Module",
+  "image": "mcr.microsoft.com/devcontainers/base:jammy",
+  "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/terraform:1": {},
+    "ghcr.io/devcontainers-extra/features/terraform-docs:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.vscode-github-actions",
+        "GitHub.vscode-pull-request-github",
+        "ms-vscode.copilot-mermaid-diagram",
+        "ms-vscode.vscode-copilot-vision",
+        "ms-vscode.vscode-speech-language-pack-es-mx",
+        "ms-vscode.vscode-speech",
+        "ms-vscode.vscode-websearchforcopilot",
+        "redhat.vscode-yaml",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "hashicorp.hcl"
+      ],
+      "settings": {
+        "accessibility.voice.speech": true,
+        "accessibility.voice.speechLanguage": "es-MX",
+        "editor.bracketPairColorization.enabled": true,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false,
+        "editor.tabSize": 2,
+        "files.encoding": "utf8",
+        "terminal.integrated.scrollback": 20000,
+        "github.copilot.editor.enableAutoCompletions": true,
+        "github.copilot.nextEditSuggestions.enabled": true
+      }
+    }
+  },
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.aws,target=/home/vscode/.aws,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+  ]
+}
