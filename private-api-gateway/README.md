@@ -1,8 +1,8 @@
-# API Gateway Privado con mTLS — Terraform
+# Lab: API Gateway Privado con Custom Domain — Terraform
 
-Infraestructura completamente privada en AWS: API Gateway HTTP v2 con autenticación
-mutua TLS (mTLS), acceso exclusivo desde la VPC vía VPC Endpoint, y una Lambda
-Python como backend.
+Infraestructura completamente privada en AWS: API Gateway REST v1 de tipo **PRIVATE**
+accesible únicamente a través de un VPC Endpoint, con custom domain privado, certificado
+ACM importado y Lambda Python como backend. No requiere IP pública en ningún componente.
 
 ## Arquitectura
 
@@ -10,40 +10,50 @@ Python como backend.
 EC2 (test-client)
   │  SSM Session Manager (sin IP pública)
   │
-  ├──[HTTPS + cert cliente]──► VPC Endpoint (execute-api)
-  │                                    │
-  │                         API Gateway HTTP v2
-  │                          ├── mTLS (truststore en S3)
-  │                          ├── Resource Policy (solo VPCE)
-  │                          └── Custom Domain (ACM + Route 53)
-  │                                    │
-  │                              Lambda (Python)
-  │                           (dentro de la VPC)
+  └──[HTTPS]──► Route 53 (Private Zone)
+                      │  A alias
+                      ▼
+              VPC Endpoint (execute-api)
+                      │
+              API Gateway REST v1
+               ├── Tipo: PRIVATE
+               ├── execute-api deshabilitado
+               ├── Resource Policy (solo VPCE)
+               └── Custom Domain PRIVATE
+                         │
+                    Lambda (Python)
+                  (dentro de la VPC)
 ```
 
-## Archivos
+## Componentes
 
 | Archivo | Descripción |
 |---|---|
-| `main.tf` | Provider y versión de Terraform |
-| `variables.tf` | Definición de variables |
-| `outputs.tf` | Outputs del stack |
-| `vpc.tf` | VPC, subnets, SGs, VPC Endpoints SSM/S3 |
-| `vpc_endpoint.tf` | VPC Endpoint execute-api + resource policy |
-| `s3.tf` | Bucket S3 para el truststore de mTLS |
-| `acm.tf` | Certificado ACM + validación DNS |
-| `apigateway.tf` | HTTP API v2 con mTLS, rutas, stage, custom domain |
-| `lambda.tf` | Lambda Python + CloudWatch Logs |
-| `ec2.tf` | EC2 sin IP pública (acceso via SSM) |
-| `iam.tf` | Roles IAM para Lambda, EC2, API Gateway |
-| `route53.tf` | Alias record para el custom domain |
+| `main.tf` | Provider AWS y versión de Terraform |
+| `variables.tf` | Variables del stack |
+| `outputs.tf` | Outputs: IDs, URLs, comandos SSM |
+| `vpc.tf` | VPC, subnets privadas, Security Groups, VPC Endpoints SSM/S3 |
+| `vpc_endpoint.tf` | VPC Endpoint execute-api + resource policy (mínimos privilegios) |
+| `acm.tf` | Certificado ACM importado (server cert) |
+| `apigateway.tf` | REST API PRIVATE, resource policy, stage, custom domain, base path mapping |
+| `route53.tf` | Private Hosted Zone + registro A alias → VPC Endpoint |
+| `s3.tf` | Bucket S3 para almacenar certificados (acceso desde EC2 vía SSM) |
+| `lambda.tf` | Función Lambda Python + CloudWatch Logs |
+| `ec2.tf` | EC2 sin IP pública (acceso únicamente vía SSM Session Manager) |
+| `iam.tf` | Roles IAM para Lambda, EC2 y API Gateway |
 | `lambda/handler.py` | Código Python de la Lambda |
-| `certs/generate_certs.sh` | Script para generar los certificados localmente |
+| `certs/generate_certs.sh` | Genera CA del servidor y certificado del servidor |
 | `templates/ec2_userdata.sh.tpl` | User data de la EC2 |
+
+## Prerrequisitos
+
+- Terraform >= 1.5.0
+- AWS CLI configurado con permisos suficientes
+- `openssl` instalado localmente
 
 ## Paso a paso
 
-### 1. Generar los certificados
+### 1. Generar los certificados del servidor
 
 ```bash
 cd certs/
@@ -51,18 +61,15 @@ chmod +x generate_certs.sh
 ./generate_certs.sh api.internal.example.com
 ```
 
-Esto genera:
-- `server-ca.crt` / `server-ca.key` → CA del servidor
-- `server.crt` / `server.key` → Certificado del servidor
-- `client-ca.crt` / `client-ca.key` → CA del cliente
-- `client.crt` / `client.key` → Certificado del cliente
-- `truststore.pem` → Truststore para API Gateway (= `client-ca.crt`)
+Genera:
+- `server-ca.key` / `server-ca.crt` — CA del servidor
+- `server.key` / `server.crt` — Certificado del servidor (wildcard `*.<dominio>`)
 
 ### 2. Configurar variables
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
-# Editar terraform.tfvars con el hosted_zone_id real y el dominio
+# Editar terraform.tfvars con el dominio y hosted zone deseados
 ```
 
 ### 3. Desplegar
@@ -73,51 +80,45 @@ terraform plan
 terraform apply
 ```
 
-> El certificado ACM puede tardar hasta 5 minutos en validarse.
+> **Nota:** el primer `apply` puede requerir dos fases si los IDs del VPC Endpoint
+> no son conocidos en tiempo de plan. En ese caso ejecutar primero:
+> `terraform apply -target=aws_vpc_endpoint.apigw` y luego `terraform apply`.
 
-### 4. Copiar certificados a la EC2
-
-Conectarse vía SSM Session Manager:
+### 4. Subir certificados a S3 y copiar a la EC2
 
 ```bash
+# Subir el server-ca a S3 para que la EC2 lo descargue
+aws s3 cp certs/server-ca.crt s3://<bucket>/mtls/server-ca.crt
+
+# Conectar a la EC2 vía SSM
 aws ssm start-session --target <instance-id> --region us-east-1
-```
 
-Desde la EC2, copiar los certificados desde S3 (o subirlos antes al bucket):
-
-```bash
-aws s3 cp s3://<bucket>/mtls/client.crt  /etc/mtls/client.crt
-aws s3 cp s3://<bucket>/mtls/client.key  /etc/mtls/client.key
+# Desde la EC2
 aws s3 cp s3://<bucket>/mtls/server-ca.crt /etc/mtls/server-ca.crt
-chmod 600 /etc/mtls/*.key
 ```
 
 ### 5. Probar
 
 ```bash
-# Desde la EC2
-test-mtls
-
-# O manualmente
-curl --cert /etc/mtls/client.crt \
-     --key  /etc/mtls/client.key \
-     --cacert /etc/mtls/server-ca.crt \
-     https://api.internal.example.com/hello | jq .
+# Desde la EC2 — petición simple con verificación del cert del servidor
+curl --cacert /etc/mtls/server-ca.crt \
+     https://<prefix-custom-domain>.api.internal.example.com/hello | jq .
 ```
 
-### Verificar que el acceso público está bloqueado
+### Verificar que el endpoint público está bloqueado
 
 ```bash
-# Desde fuera de la VPC — debe retornar 403
+# Debe retornar 403 Forbidden
 curl -k https://<api-id>.execute-api.us-east-1.amazonaws.com/hello
 ```
 
-## Seguridad
+## Consideraciones de seguridad
 
-- El API Gateway solo acepta conexiones que pasen por el VPC Endpoint (resource policy)
-- mTLS valida el certificado del cliente contra el truststore (Client CA)
-- La EC2 no tiene IP pública — acceso solo vía SSM Session Manager
+- API Gateway solo acepta tráfico que pase por el VPC Endpoint (resource policy con condición `aws:SourceVpce`)
+- El endpoint `execute-api` por defecto está deshabilitado (`disable_execute_api_endpoint = true`)
+- La EC2 no tiene IP pública — acceso exclusivo vía SSM Session Manager
 - IMDSv2 obligatorio en la EC2
-- Bucket S3 con cifrado KMS, versionado y acceso público bloqueado
-- Lambda dentro de la VPC (subnets privadas)
+- Bucket S3 con cifrado SSE-S3, versionado habilitado y bloqueo de acceso público
+- Lambda desplegada dentro de la VPC (subnets privadas)
 - Claves privadas con permisos `600`
+- Custom domain con política de dominio que refuerza la condición VPCE

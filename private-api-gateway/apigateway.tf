@@ -24,7 +24,30 @@ resource "aws_api_gateway_rest_api" "main" {
 
 resource "aws_api_gateway_rest_api_policy" "main" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  policy      = data.aws_iam_policy_document.apigw_resource_policy.json
+  policy      = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "Allow"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "execute-api:Invoke"
+        Resource  = "${aws_api_gateway_rest_api.main.execution_arn}/*"
+      },
+      {
+        Sid       = "Deny"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "execute-api:Invoke"
+        Resource  = "${aws_api_gateway_rest_api.main.execution_arn}/*"
+        Condition = {
+          StringNotEquals = {
+            "aws:SourceVpce" = aws_vpc_endpoint.apigw.id
+          }
+        }
+      }
+    ]
+  })
 }
 
 # =============================================================================
@@ -194,6 +217,9 @@ resource "aws_api_gateway_domain_name" "main" {
 
   tags       = { Name = "${var.project_name}-private-domain" }
   depends_on = [aws_acm_certificate.api_domain]
+  lifecycle {
+    ignore_changes = [ policy ]
+  }
 }
 
 resource "aws_api_gateway_domain_name_access_association" "main" {
