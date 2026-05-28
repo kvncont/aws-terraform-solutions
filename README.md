@@ -8,20 +8,20 @@ conectividad privada y buenas prácticas en AWS.
 
 | Lab | Descripción | Servicios principales |
 |---|---|---|
-| [`private-api-gateway`](./private-api-gateway/) | API Gateway REST PRIVATE accesible solo desde la VPC via VPC Endpoint y custom domain privado | API GW, VPC Endpoint, ACM, Route 53, Lambda, EC2, S3 |
-| [`private-api-gateway-mtls`](./private-api-gateway-mtls/) | Igual que el anterior pero con un ALB interno que termina mTLS (verifica certificado del cliente) antes de llegar al VPC Endpoint | API GW, ALB, mTLS, VPC Endpoint, ACM, Route 53, Lambda, EC2, S3 |
+| [`api-gateway-private`](./api-gateway-private/) | API Gateway REST PRIVATE accesible solo desde la VPC via VPC Endpoint y custom domain privado | API GW, VPC Endpoint, ACM, Route 53, Lambda, EC2, S3 |
+| [`api-gateway-private-mtls`](./api-gateway-private-mtls/) | Igual que el anterior pero con un ALB interno que termina mTLS (verifica certificado del cliente) antes de llegar al VPC Endpoint | API GW, ALB, mTLS, VPC Endpoint, ACM, Route 53, Lambda, EC2, S3 |
 
 ## Estructura del repositorio
 
 ```
 aws-terraform-solutions/
 ├── README.md                    ← este archivo
-├── private-api-gateway/         ← Lab: API GW PRIVATE + custom domain
+├── api-gateway-private/         ← Lab: API GW PRIVATE + custom domain
 │   ├── *.tf
 │   ├── certs/
 │   ├── lambda/
 │   └── templates/
-└── private-api-gateway-mtls/    ← Lab: API GW PRIVATE + ALB con mTLS
+└── api-gateway-private-mtls/    ← Lab: API GW PRIVATE + ALB con mTLS
     ├── *.tf
     ├── certs/
     ├── lambda/
