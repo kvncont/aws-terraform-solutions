@@ -3,8 +3,9 @@
 # =============================================================================
 
 resource "aws_api_gateway_rest_api" "main" {
-  name        = "${var.project_name}-api"
-  description = "API privado con mTLS - solo accesible desde la VPC"
+  name                         = "${var.project_name}-api"
+  description                  = "API privado con mTLS - solo accesible desde la VPC"
+  disable_execute_api_endpoint = true
 
   # PRIVATE: solo accesible a través del VPC Endpoint
   endpoint_configuration {
@@ -103,15 +104,15 @@ resource "aws_api_gateway_stage" "default" {
     destination_arn = aws_cloudwatch_log_group.apigw.arn
 
     format = jsonencode({
-      requestId              = "$context.requestId"
-      sourceIp               = "$context.identity.sourceIp"
-      requestTime            = "$context.requestTime"
-      protocol               = "$context.protocol"
-      httpMethod             = "$context.httpMethod"
-      resourcePath           = "$context.resourcePath"
-      status                 = "$context.status"
-      responseLength         = "$context.responseLength"
-      integrationErrorMsg    = "$context.integrationErrorMessage"
+      requestId           = "$context.requestId"
+      sourceIp            = "$context.identity.sourceIp"
+      requestTime         = "$context.requestTime"
+      protocol            = "$context.protocol"
+      httpMethod          = "$context.httpMethod"
+      resourcePath        = "$context.resourcePath"
+      status              = "$context.status"
+      responseLength      = "$context.responseLength"
+      integrationErrorMsg = "$context.integrationErrorMessage"
       # mTLS — en REST API v1 el contexto del cert cliente está en identity
       clientCertSubject      = "$context.identity.clientCert.subjectDN"
       clientCertIssuer       = "$context.identity.clientCert.issuerDN"
@@ -159,35 +160,52 @@ resource "aws_cloudwatch_log_group" "apigw" {
   }
 }
 
-# =============================================================================
-# Custom Domain Name
-# En REST API v1 el mTLS se configura aquí, no en el REST API directamente
-# =============================================================================
-
 resource "aws_api_gateway_domain_name" "main" {
-  domain_name              = var.custom_domain
-  regional_certificate_arn = aws_acm_certificate_validation.api_domain.certificate_arn
-  security_policy          = "TLS_1_2"
+  domain_name     = "${var.prefix_custom_domain}.${var.custom_domain}"
+  certificate_arn = aws_acm_certificate.api_domain.arn
 
+  security_policy = "TLS_1_2"
   endpoint_configuration {
-    types = ["REGIONAL"]
+    types = ["PRIVATE"]
   }
 
-  mutual_tls_authentication {
-    truststore_uri     = "s3://${aws_s3_bucket.truststore.bucket}/${aws_s3_object.truststore_pem.key}"
-    truststore_version = aws_s3_object.truststore_pem.version_id
-  }
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "execute-api:Invoke"
+        Resource  = "execute-api:/*"
+      },
+      {
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "execute-api:Invoke"
+        Resource  = "execute-api:/*"
+        Condition = {
+          StringNotEquals = {
+            "aws:SourceVpce" = aws_vpc_endpoint.apigw.id
+          }
+        }
+      }
+    ]
+  })
 
-  tags = {
-    Name = "${var.project_name}-custom-domain"
-  }
-
-  depends_on = [aws_acm_certificate_validation.api_domain]
+  tags       = { Name = "${var.project_name}-private-domain" }
+  depends_on = [aws_acm_certificate.api_domain]
 }
 
-# Mapeo del custom domain al stage
+resource "aws_api_gateway_domain_name_access_association" "main" {
+  access_association_source      = aws_vpc_endpoint.apigw.id
+  access_association_source_type = "VPCE"
+  domain_name_arn                = aws_api_gateway_domain_name.main.arn
+}
+
 resource "aws_api_gateway_base_path_mapping" "main" {
-  api_id      = aws_api_gateway_rest_api.main.id
-  stage_name  = aws_api_gateway_stage.default.stage_name
-  domain_name = aws_api_gateway_domain_name.main.domain_name
+  api_id         = aws_api_gateway_rest_api.main.id
+  stage_name     = aws_api_gateway_stage.default.stage_name
+  domain_name    = aws_api_gateway_domain_name.main.domain_name
+  domain_name_id = aws_api_gateway_domain_name.main.domain_name_id
+  depends_on     = [aws_api_gateway_domain_name_access_association.main]
 }

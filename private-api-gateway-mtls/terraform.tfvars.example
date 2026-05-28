@@ -15,7 +15,6 @@ availability_zones   = ["us-east-1a", "us-east-1b"]
 
 # Dominio — debe existir en Route 53 como Hosted Zone
 custom_domain  = "api.internal.example.com"
-hosted_zone_id = "Z0123456789ABCDEFGHIJ"   # Reemplazar con el ID real
 
 # S3
 truststore_s3_key = "mtls/truststore.pem"

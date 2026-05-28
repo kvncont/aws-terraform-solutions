@@ -5,8 +5,8 @@
 # =============================================================================
 
 resource "aws_s3_bucket" "truststore" {
-  bucket = "${var.project_name}-truststore-${data.aws_caller_identity.current.account_id}"
-
+  bucket        = "${var.project_name}-truststore-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
   tags = {
     Name    = "${var.project_name}-truststore"
     Purpose = "mTLS Truststore"
@@ -88,6 +88,53 @@ resource "aws_s3_object" "truststore_pem" {
 
   tags = {
     Name = "mTLS Truststore"
+  }
+}
+
+# Certificado del cliente (v3, clientAuth EKU) — usado por el EC2 test client
+resource "aws_s3_object" "client_cert" {
+  bucket = aws_s3_bucket.truststore.id
+  key    = "mtls/client.crt"
+  source = "${path.module}/certs/client.crt"
+  etag   = filemd5("${path.module}/certs/client.crt")
+
+  tags = {
+    Name = "mTLS Client Certificate"
+  }
+}
+
+# Clave privada del cliente — sensible, solo accesible via IAM
+resource "aws_s3_object" "client_key" {
+  bucket = aws_s3_bucket.truststore.id
+  key    = "mtls/client.key"
+  source = "${path.module}/certs/client.key"
+  etag   = filemd5("${path.module}/certs/client.key")
+
+  tags = {
+    Name = "mTLS Client Key"
+  }
+}
+
+# CA del servidor — el cliente la usa como --cacert para verificar el cert del ALB
+resource "aws_s3_object" "server_ca_cert" {
+  bucket = aws_s3_bucket.truststore.id
+  key    = "mtls/server-ca.crt"
+  source = "${path.module}/certs/server-ca.crt"
+  etag   = filemd5("${path.module}/certs/server-ca.crt")
+
+  tags = {
+    Name = "mTLS Server CA Certificate"
+  }
+}
+
+resource "aws_s3_object" "server_cert" {
+  bucket = aws_s3_bucket.truststore.id
+  key    = "mtls/server.crt"
+  source = "${path.module}/certs/server.crt"
+  etag   = filemd5("${path.module}/certs/server.crt")
+
+  tags = {
+    Name = "mTLS Server Certificate"
   }
 }
 

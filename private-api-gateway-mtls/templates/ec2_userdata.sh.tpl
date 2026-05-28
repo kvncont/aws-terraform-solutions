@@ -23,22 +23,16 @@ mkdir -p /etc/mtls
 chmod 700 /etc/mtls
 
 # ---------------------------------------------------------------------------
-# Los certificados deben copiarse manualmente o via SSM Parameter Store.
-# Este script crea un placeholder y un helper para copiarlos.
+# Descargar certificados desde S3
 # ---------------------------------------------------------------------------
+BUCKET="${truststore_bucket}"
 
-cat > /etc/mtls/README.txt <<'EOF'
-Copiar los siguientes archivos desde el directorio certs/ del proyecto:
-  - client.crt   → certificado del cliente
-  - client.key   → clave privada del cliente
-  - server-ca.crt → CA del servidor (para verificar el certificado del API GW)
+aws s3 cp "s3://$${BUCKET}/mtls/client.crt"     /etc/mtls/client.crt
+aws s3 cp "s3://$${BUCKET}/mtls/client.key"     /etc/mtls/client.key
+aws s3 cp "s3://$${BUCKET}/mtls/server-ca.crt"  /etc/mtls/server-ca.crt
 
-Ejemplo usando SSM Session Manager + S3:
-  aws s3 cp s3://BUCKET/mtls/client.crt /etc/mtls/client.crt
-  aws s3 cp s3://BUCKET/mtls/client.key /etc/mtls/client.key
-  aws s3 cp s3://BUCKET/mtls/server-ca.crt /etc/mtls/server-ca.crt
-  chmod 600 /etc/mtls/*.key
-EOF
+chmod 600 /etc/mtls/client.key
+chmod 644 /etc/mtls/client.crt /etc/mtls/server-ca.crt
 
 # ---------------------------------------------------------------------------
 # Script helper para realizar las pruebas

@@ -46,15 +46,16 @@ resource "aws_instance" "test_client" {
   }
 
   metadata_options {
-    http_tokens                 = "required"   # Requiere IMDSv2
+    http_tokens                 = "required" # Requiere IMDSv2
     http_put_response_hop_limit = 1
     http_endpoint               = "enabled"
   }
 
-  user_data = base64encode(templatefile("${path.module}/templates/ec2_userdata.sh.tpl", {
-    custom_domain  = var.custom_domain
-    aws_region     = var.aws_region
-    project_name   = var.project_name
+  user_data_base64 = base64encode(templatefile("${path.module}/templates/ec2_userdata.sh.tpl", {
+    custom_domain     = var.custom_domain
+    aws_region        = var.aws_region
+    project_name      = var.project_name
+    truststore_bucket = aws_s3_bucket.truststore.bucket
   }))
 
   tags = {
@@ -67,4 +68,8 @@ resource "aws_instance" "test_client" {
     aws_vpc_endpoint.ssmmessages,
     aws_vpc_endpoint.ec2messages,
   ]
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
 }

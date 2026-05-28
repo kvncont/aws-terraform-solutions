@@ -1,0 +1,30 @@
+# =============================================================================
+# Ejemplo de valores para terraform.tfvars
+# Copia este archivo como terraform.tfvars y ajusta los valores.
+# NUNCA commitear terraform.tfvars con datos reales.
+# =============================================================================
+
+aws_region   = "us-east-1"
+project_name = "mtls-apigw"
+environment  = "dev"
+
+# VPC
+vpc_cidr             = "10.0.0.0/16"
+private_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
+availability_zones   = ["us-east-1a", "us-east-1b"]
+
+# Dominio — debe existir en Route 53 como Hosted Zone
+custom_domain  = "api.internal.example.com"
+
+# S3
+truststore_s3_key = "mtls/truststore.pem"
+
+# EC2
+ec2_instance_type = "t3.micro"
+ec2_ami_id        = ""   # Vacío = se resuelve automáticamente (Amazon Linux 2023)
+ec2_key_pair_name = ""   # Vacío = sin key pair (usar SSM Session Manager)
+
+# Lambda
+lambda_runtime     = "python3.12"
+lambda_timeout     = 30
+lambda_memory_size = 256

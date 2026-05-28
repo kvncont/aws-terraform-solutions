@@ -4,7 +4,7 @@
 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
-  enable_dns_support   = true   # Necesario para VPC Endpoint / Private Hosted Zone
+  enable_dns_support   = true # Necesario para VPC Endpoint / Private Hosted Zone
   enable_dns_hostnames = true
 
   tags = {
@@ -73,6 +73,72 @@ resource "aws_security_group" "vpce_apigw" {
 
   tags = {
     Name = "${var.project_name}-sg-vpce-apigw"
+  }
+}
+
+# Security Group: VPC Endpoint execute-api — solo permite tráfico desde el ALB
+# Esto evita que alguien pueda saltarse la verificación mTLS del ALB
+# invocando el VPC Endpoint directamente.
+resource "aws_security_group" "vpce_execute_api" {
+  name        = "${var.project_name}-sg-vpce-execute-api"
+  description = "Permite HTTPS al VPC Endpoint de execute-api solo desde el ALB interno"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "HTTPS solo desde el ALB interno (previene bypass de mTLS)"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_internal.id]
+  }
+
+  # TEMPORAL: permite acceso directo desde la EC2 de pruebas (sin pasar por el ALB/mTLS)
+  # Eliminar esta regla cuando terminen las pruebas
+  ingress {
+    description     = "TEMPORAL - HTTPS directo desde EC2 de pruebas"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ec2_test.id]
+  }
+
+  egress {
+    description = "Todo trafico saliente"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-sg-vpce-execute-api"
+  }
+}
+
+# Security Group: ALB interno (mTLS)
+resource "aws_security_group" "alb_internal" {
+  name        = "${var.project_name}-sg-alb-internal"
+  description = "Security Group para el ALB interno que verifica mTLS"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "HTTPS mTLS desde la VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "HTTPS hacia el VPC Endpoint de execute-api"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${var.project_name}-sg-alb-internal"
   }
 }
 

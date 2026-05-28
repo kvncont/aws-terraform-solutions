@@ -17,23 +17,25 @@ echo "=================================================="
 # 1. CA del Servidor
 # ---------------------------------------------------------------
 echo "[1/6] Generando CA del Servidor..."
-openssl genrsa -out "$CERTS_DIR/server-ca.key" 4096
+openssl genrsa -out "$CERTS_DIR/server-ca.key" 2048
 
 openssl req -new -x509 -days 3650 \
   -key "$CERTS_DIR/server-ca.key" \
   -out "$CERTS_DIR/server-ca.crt" \
-  -subj "/C=CR/ST=San Jose/L=San Jose/O=MyOrg Server CA/OU=PKI/CN=Server Root CA"
+  -subj "/C=CR/ST=San Jose/L=San Jose/O=MyOrg Server CA/OU=PKI/CN=Server Root CA" \
+  -addext "basicConstraints=critical,CA:TRUE" \
+  -addext "keyUsage=critical,keyCertSign,cRLSign"
 
 # ---------------------------------------------------------------
 # 2. Certificado del Servidor (firmado por Server CA)
 # ---------------------------------------------------------------
 echo "[2/6] Generando clave y CSR del servidor..."
-openssl genrsa -out "$CERTS_DIR/server.key" 4096
+openssl genrsa -out "$CERTS_DIR/server.key" 2048
 
 openssl req -new \
   -key "$CERTS_DIR/server.key" \
   -out "$CERTS_DIR/server.csr" \
-  -subj "/C=CR/ST=San Jose/L=San Jose/O=MyOrg/OU=API/CN=$DOMAIN"
+  -subj "/C=CR/ST=San Jose/L=San Jose/O=MyOrg/OU=API/CN=*.$DOMAIN"
 
 echo "[3/6] Firmando certificado del servidor con Server CA..."
 cat > "$CERTS_DIR/server-ext.cnf" <<EOF
@@ -60,30 +62,44 @@ openssl x509 -req -days 825 \
 # 3. CA del Cliente
 # ---------------------------------------------------------------
 echo "[4/6] Generando CA del Cliente..."
-openssl genrsa -out "$CERTS_DIR/client-ca.key" 4096
+openssl genrsa -out "$CERTS_DIR/client-ca.key" 2048
 
 openssl req -new -x509 -days 3650 \
   -key "$CERTS_DIR/client-ca.key" \
   -out "$CERTS_DIR/client-ca.crt" \
-  -subj "/C=CR/ST=San Jose/L=San Jose/O=MyOrg Client CA/OU=PKI/CN=Client Root CA"
+  -subj "/C=CR/ST=San Jose/L=San Jose/O=MyOrg Client CA/OU=PKI/CN=Client Root CA" \
+  -addext "basicConstraints=critical,CA:TRUE" \
+  -addext "keyUsage=critical,keyCertSign,cRLSign"
 
 # ---------------------------------------------------------------
 # 4. Certificado del Cliente (firmado por Client CA)
 # ---------------------------------------------------------------
 echo "[5/6] Generando clave y certificado del cliente..."
-openssl genrsa -out "$CERTS_DIR/client.key" 4096
+openssl genrsa -out "$CERTS_DIR/client.key" 2048
 
 openssl req -new \
   -key "$CERTS_DIR/client.key" \
   -out "$CERTS_DIR/client.csr" \
   -subj "/C=CR/ST=San Jose/L=San Jose/O=MyOrg/OU=Client/CN=internal-client"
 
+# Extensiones v3 para el certificado cliente (clientAuth EKU requerido por ALB mTLS)
+cat > "$CERTS_DIR/client-ext.cnf" << EOF
+[v3_client]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature
+extendedKeyUsage = clientAuth
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+EOF
+
 openssl x509 -req -days 825 \
   -in "$CERTS_DIR/client.csr" \
   -CA "$CERTS_DIR/client-ca.crt" \
   -CAkey "$CERTS_DIR/client-ca.key" \
   -CAcreateserial \
-  -out "$CERTS_DIR/client.crt"
+  -out "$CERTS_DIR/client.crt" \
+  -extfile "$CERTS_DIR/client-ext.cnf" \
+  -extensions v3_client
 
 # ---------------------------------------------------------------
 # 5. Truststore (PEM con la Client CA — usado por API Gateway mTLS)

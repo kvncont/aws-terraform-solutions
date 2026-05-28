@@ -10,7 +10,7 @@ resource "aws_vpc_endpoint" "apigw" {
   service_name        = "com.amazonaws.${var.aws_region}.execute-api"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = aws_subnet.private[*].id
-  security_group_ids  = [aws_security_group.vpce_apigw.id]
+  security_group_ids  = [aws_security_group.vpce_execute_api.id]
   private_dns_enabled = true
 
   tags = {
@@ -25,13 +25,14 @@ resource "aws_vpc_endpoint" "apigw" {
 # =============================================================================
 
 data "aws_iam_policy_document" "apigw_resource_policy" {
+  # Permite invocar la API únicamente desde el VPC Endpoint de esta cuenta
   statement {
-    sid    = "AllowVPCEndpointOnly"
+    sid    = "AllowInvokeFromVpce"
     effect = "Allow"
 
     principals {
-      type        = "*"
-      identifiers = ["*"]
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
     }
 
     actions   = ["execute-api:Invoke"]
@@ -44,8 +45,9 @@ data "aws_iam_policy_document" "apigw_resource_policy" {
     }
   }
 
+  # Deniega explícitamente cualquier tráfico que no venga del VPC Endpoint
   statement {
-    sid    = "DenyPublicAccess"
+    sid    = "DenyInvokeOutsideVpce"
     effect = "Deny"
 
     principals {

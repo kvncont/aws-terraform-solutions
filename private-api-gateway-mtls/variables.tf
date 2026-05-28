@@ -52,9 +52,23 @@ variable "custom_domain" {
   default     = "api.internal.example.com"
 }
 
-variable "hosted_zone_id" {
-  description = "ID del Hosted Zone de Route 53 para el dominio interno"
+variable "prefix_custom_domain" {
+  description = "Prefijo para el dominio personalizado (usado en Route 53)"
   type        = string
+  default     = "custom-domain"
+}
+
+variable "ownership_verification_certificate_arn" {
+  description = <<-EOT
+    ARN de un certificado ACM público (NO importado, NO Private CA) que cubra el mismo
+    dominio o un dominio padre de custom_domain. Requerido por API Gateway cuando el
+    certificado regional proviene de una ACM Private CA.
+    Ejemplo: si custom_domain = "api.internal.example.com", este cert debe cubrir
+    "api.internal.example.com", "*.internal.example.com" o "*.example.com".
+    Dejar vacío omite el argumento (el apply fallará en aws_api_gateway_domain_name).
+  EOT
+  type        = string
+  default     = ""
 }
 
 variable "truststore_s3_key" {
@@ -76,7 +90,7 @@ variable "ec2_instance_type" {
 variable "ec2_ami_id" {
   description = "AMI ID para la instancia EC2 (Amazon Linux 2023)"
   type        = string
-  default     = ""   # Si queda vacío se resuelve dinámicamente con un data source
+  default     = "" # Si queda vacío se resuelve dinámicamente con un data source
 }
 
 variable "ec2_key_pair_name" {
