@@ -16,12 +16,12 @@ resource "aws_route53_zone" "internal" {
   }
 }
 
-# A (alias): ${var.prefix_custom_domain}.api.internal.example.com → ALB interno (punto de entrada con mTLS)
+# A (alias): ${var.project_name}.api.internal.example.com → ALB interno (punto de entrada con mTLS)
 # El nombre debe coincidir con aws_api_gateway_domain_name.main.domain_name para que
 # API Gateway pueda hacer el routing por Host header.
 resource "aws_route53_record" "api_domain" {
   zone_id = aws_route53_zone.internal.zone_id
-  name    = "${var.prefix_custom_domain}.${var.custom_domain}"
+  name    = "${var.project_name}.${var.custom_domain}"
   type    = "A"
 
   alias {
@@ -35,7 +35,7 @@ resource "aws_route53_record" "api_domain" {
 # Usar si se prefiere TTL explícito en lugar de alias Route53.
 # resource "aws_route53_record" "api_domain" {
 #   zone_id = aws_route53_zone.internal.zone_id
-#   name    = "${var.prefix_custom_domain}.${var.custom_domain}"
+#   name    = "${var.project_name}.${var.custom_domain}"
 #   type    = "CNAME"
 #   ttl     = 300
 #   records = [aws_lb.internal.dns_name]

@@ -11,7 +11,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Nombre del proyecto (usado en tags y nombres de recursos)"
   type        = string
-  default     = "mtls-apigw"
+  default     = "apigw-private-mtls"
 }
 
 variable "environment" {
@@ -50,12 +50,6 @@ variable "custom_domain" {
   description = "Dominio personalizado para el API Gateway (debe existir en Route 53)"
   type        = string
   default     = "api.internal.example.com"
-}
-
-variable "prefix_custom_domain" {
-  description = "Prefijo para el dominio personalizado (usado en Route 53)"
-  type        = string
-  default     = "custom-domain"
 }
 
 variable "ownership_verification_certificate_arn" {

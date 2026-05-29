@@ -18,7 +18,7 @@ resource "aws_route53_zone" "internal" {
 
 resource "aws_route53_record" "api_domain" {
   zone_id = aws_route53_zone.internal.zone_id
-  name    = "${var.prefix_custom_domain}.${var.custom_domain}"
+  name    = "${var.project_name}.${var.custom_domain}"
   type    = "A"
   alias {
     name                   = aws_vpc_endpoint.apigw.dns_entry[0].dns_name
@@ -31,7 +31,7 @@ resource "aws_route53_record" "api_domain" {
 # Usar si se prefiere TTL explícito en lugar de alias Route53.
 # resource "aws_route53_record" "api_domain" {
 #   zone_id = aws_route53_zone.internal.zone_id
-#   name    = "${var.prefix_custom_domain}.${var.custom_domain}"
+#   name    = "${var.project_name}.${var.custom_domain}"
 #   type    = "CNAME"
 #   ttl     = 300
 #   records = [aws_vpc_endpoint.apigw.dns_entry[0].dns_name]

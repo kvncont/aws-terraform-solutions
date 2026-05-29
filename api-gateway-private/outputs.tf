@@ -69,7 +69,7 @@ output "acm_certificate_arn" {
 
 output "curl_example" {
   description = "Ejemplo de curl fallido sin certificado cliente (debe ser rechazado por el ALB)"
-  value       = "curl --cacert /etc/mtls/server-ca.crt https://${var.prefix_custom_domain}.${var.custom_domain}/hello"
+  value       = "curl --cacert /etc/mtls/server-ca.crt https://${var.project_name}.${var.custom_domain}/hello"
 }
 
 output "curl_example_direct_vpce" {
@@ -84,7 +84,7 @@ output "curl_example_direct_apigw" {
 
 output "nslookup_custom_domain" {
   description = "Comando para resolver el dominio personalizado desde la EC2"
-  value       = "nslookup ${var.prefix_custom_domain}.${var.custom_domain} ${aws_instance.test_client.private_ip}"
+  value       = "nslookup ${var.project_name}.${var.custom_domain} ${aws_instance.test_client.private_ip}"
 }
 
 output "ssm_download_certs_command" {

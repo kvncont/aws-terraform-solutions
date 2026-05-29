@@ -74,12 +74,12 @@ output "alb_dns_name" {
 
 output "curl_example_with_client_cert" {
   description = "Ejemplo de curl para probar mTLS desde la EC2"
-  value       = "curl --cert /etc/mtls/client.crt --key /etc/mtls/client.key --cacert /etc/mtls/server-ca.crt https://${var.prefix_custom_domain}.${var.custom_domain}/hello"
+  value       = "curl --cert /etc/mtls/client.crt --key /etc/mtls/client.key --cacert /etc/mtls/server-ca.crt https://${var.project_name}.${var.custom_domain}/hello"
 }
 
 output "curl_example_no_client_cert" {
   description = "Ejemplo de curl fallido sin certificado cliente (debe ser rechazado por el ALB)"
-  value       = "curl --cacert /etc/mtls/server-ca.crt https://${var.prefix_custom_domain}.${var.custom_domain}/hello"
+  value       = "curl --cacert /etc/mtls/server-ca.crt https://${var.project_name}.${var.custom_domain}/hello"
 }
 
 output "curl_example_direct_vpce" {
@@ -94,7 +94,7 @@ output "curl_example_direct_apigw" {
 
 output "nslookup_custom_domain" {
   description = "Comando para resolver el dominio personalizado desde la EC2"
-  value       = "nslookup ${var.prefix_custom_domain}.${var.custom_domain} ${aws_instance.test_client.private_ip}"
+  value       = "nslookup ${var.project_name}.${var.custom_domain} ${aws_instance.test_client.private_ip}"
 }
 
 output "ssm_download_certs_command" {

@@ -184,7 +184,7 @@ resource "aws_cloudwatch_log_group" "apigw" {
 }
 
 resource "aws_api_gateway_domain_name" "main" {
-  domain_name     = "${var.prefix_custom_domain}.${var.custom_domain}"
+  domain_name     = "${var.project_name}.${var.custom_domain}"
   certificate_arn = aws_acm_certificate.api_domain.arn
 
   security_policy = "TLS_1_2"
