@@ -1,0 +1,28 @@
+projects:
+  backends:
+    namespace: argocd
+    description: Backend services project
+    sourceNamespaces:
+      - argocd
+    sourceRepos:
+      - "*"
+    destinations:
+      - server: ${cluster_server}
+        namespace: default
+    clusterResourceWhitelist:
+      - group: "*"
+        kind: "*"
+
+  controllers:
+    namespace: argocd
+    description: Controllers project
+    sourceNamespaces:
+      - argocd
+    sourceRepos:
+      - "*"
+    destinations:
+      - server: ${cluster_server}
+        namespace: default
+    clusterResourceWhitelist:
+      - group: "*"
+        kind: "*"

@@ -4,16 +4,36 @@
 
 resource "aws_eks_capability" "argocd" {
   depends_on = [
-    aws_eks_cluster.this
+    aws_eks_cluster.this,
   ]
 
-  count                     = var.enable_argocd_bootstrap ? 1 : 0
+  count = var.enable_argocd_bootstrap ? 1 : 0
 
   cluster_name              = aws_eks_cluster.this.name
   capability_name           = "argocd"
   type                      = "ARGOCD"
   role_arn                  = aws_iam_role.argocd.arn
   delete_propagation_policy = "RETAIN"
+
+  configuration {
+    argo_cd {
+      namespace = "argocd"
+
+      aws_idc {
+        idc_instance_arn = var.idc_instance_arn
+      }
+
+      rbac_role_mapping {
+        identity {
+          type = "SSO_GROUP"
+          id   = var.argocd_admin_sso_group_id
+        }
+        role = "ADMIN"
+      }
+    }
+  }
+
+
 
   tags = {
     Name = local.eks_capability_argocd_name
@@ -22,7 +42,7 @@ resource "aws_eks_capability" "argocd" {
 
 resource "kubernetes_secret_v1" "argocd" {
   depends_on = [
-    aws_eks_capability.argocd
+    aws_eks_capability.argocd[0]
   ]
 
   count = var.enable_argocd_bootstrap ? 1 : 0
@@ -36,16 +56,17 @@ resource "kubernetes_secret_v1" "argocd" {
   }
   data = {
     name    = local.cluster_name
-    server  = aws_eks_cluster.this.endpoint
+    server  = aws_eks_cluster.this.arn
     project = "default"
   }
 
   type = "Opaque"
 }
 
+# Configura el acceso a un repo privado de GitHub usando una GitHub App
 resource "kubernetes_secret_v1" "argocd_github_app_repo" {
   depends_on = [
-    aws_eks_capability.argocd
+    aws_eks_capability.argocd[0]
   ]
 
   count = var.enable_argocd_bootstrap ? 1 : 0
@@ -59,91 +80,72 @@ resource "kubernetes_secret_v1" "argocd_github_app_repo" {
   }
 
   data = {
-    github-privateKey = var.github_app_private_key
+    type                    = "git"
+    url                     = "https://github.com/kvncont/ms-control-plane.git"
+    githubAppID             = var.github_app_id
+    githubAppInstallationID = var.github_app_installation_id
+    githubAppPrivateKey     = var.github_app_private_key
   }
 
   type = "Opaque"
 }
 
-resource "kubernetes_config_map_v1" "argocd_github_repo_config" {
+resource "helm_release" "projects" {
   depends_on = [
-    aws_eks_capability.argocd,
-    kubernetes_secret_v1.argocd_github_app_repo
+    aws_eks_capability.argocd[0],
+    kubernetes_secret_v1.argocd_github_app_repo[0]
   ]
 
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  metadata {
-    name      = "argocd-github-repo-config"
-    namespace = "argocd"
-  }
-
-  data = {
-    appID          = var.github_app_id
-    installationID = var.github_app_installation_id
-    privateKey     = "$github-privateKey"
-  }
-}
-
-resource "helm_release" "argocd_apps" {
-  depends_on = [
-    aws_eks_capability.argocd,
-    kubernetes_secret_v1.argocd_github_app_repo
-  ]
-
-  count = var.enable_argocd_bootstrap ? 1 : 0
-
-  name       = "argocd-apps"
+  name       = "projects"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argocd-apps"
   namespace  = "argocd"
 
   values = [
-    yamlencode({
-      applicationsets = {
-        test-appset = {
-          generators = [
-            {
-              list = {
-                elements = [
-                  {
-                    name = "guestbook"
-                    path = "guestbook"
-                  },
-                  {
-                    name = "helm-guestbook"
-                    path = "helm-guestbook"
-                  }
-                ]
-              }
-            }
-          ]
-          template = {
-            metadata = {
-              name = "{{name}}"
-            }
-            spec = {
-              project = "default"
-              source = {
-                repoURL        = var.argocd_private_repo_url
-                targetRevision = "HEAD"
-                path           = "{{path}}"
-              }
-              destination = {
-                server    = aws_eks_cluster.this.arn
-                namespace = "default"
-              }
-              syncPolicy = {
-                automated = {
-                  prune    = false
-                  selfHeal = false
-                }
-                syncOptions = ["CreateNamespace=true"]
-              }
-            }
-          }
-        }
-      }
+    templatefile("${path.module}/argo/projects/projects.yml", {
+      cluster_server = aws_eks_cluster.this.arn
+    })
+  ]
+}
+
+resource "helm_release" "controller_1" {
+  depends_on = [
+    helm_release.projects[0],
+    kubernetes_secret_v1.argocd_github_app_repo[0]
+  ]
+
+  count = var.enable_argocd_bootstrap ? 1 : 0
+
+  name       = "controller-1"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argocd-apps"
+  namespace  = "argocd"
+
+  values = [
+    templatefile("${path.module}/argo/application/controller-1.yml", {
+      cluster_server = aws_eks_cluster.this.arn
+    })
+  ]
+}
+
+resource "helm_release" "microservices" {
+  depends_on = [
+    helm_release.projects[0],
+    kubernetes_secret_v1.argocd_github_app_repo[0]
+  ]
+
+  count = var.enable_argocd_bootstrap ? 1 : 0
+
+  name       = "microservices"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argocd-apps"
+  namespace  = "argocd"
+
+  values = [
+    templatefile("${path.module}/argo/applicationset/microservices.yml", {
+      cluster_server = aws_eks_cluster.this.arn
     })
   ]
 }

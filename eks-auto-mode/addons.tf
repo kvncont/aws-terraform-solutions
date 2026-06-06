@@ -9,7 +9,9 @@ data "aws_eks_addon_version" "metrics_server" {
 }
 
 resource "aws_eks_addon" "metrics_server" {
-  depends_on = [aws_eks_cluster.this]
+  depends_on = [
+    aws_eks_cluster.this
+  ]
 
   cluster_name                = aws_eks_cluster.this.name
   addon_name                  = "metrics-server"
@@ -33,7 +35,9 @@ data "aws_eks_addon_version" "cloudwatch" {
 }
 
 resource "aws_eks_addon" "cloudwatch" {
-  depends_on = [aws_eks_cluster.this]
+  depends_on = [
+    aws_eks_cluster.this
+  ]
 
   cluster_name                = aws_eks_cluster.this.name
   addon_name                  = "amazon-cloudwatch-observability"

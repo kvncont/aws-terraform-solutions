@@ -237,7 +237,7 @@ data "aws_iam_policy_document" "argocd_assume" {
     effect = "Allow"
     principals {
       type        = "Service"
-      identifiers = ["pods.eks.amazonaws.com"]
+      identifiers = ["capabilities.eks.amazonaws.com"]
     }
     actions = [
       "sts:AssumeRole",
@@ -254,11 +254,24 @@ resource "aws_iam_role" "argocd" {
   }
 }
 
-resource "aws_eks_pod_identity_association" "argocd" {
-  cluster_name    = aws_eks_cluster.this.name
-  namespace       = "argocd"
-  service_account = "argocd-server"
-  role_arn        = aws_iam_role.argocd.arn
+# EKS crea automaticamente un Access Entry para el Capability Role cuando se
+# aprovisiona la capacidad de ArgoCD, pero no otorga permisos RBAC de Kubernetes.
+# Esta asociacion asigna explicitamente AmazonEKSClusterAdminPolicy a nivel de
+# cluster para que ArgoCD pueda listar y sincronizar todos los recursos (p. ej., CSINode).
+resource "aws_eks_access_policy_association" "argocd_cluster_admin" {
+  depends_on = [
+    aws_eks_capability.argocd[0],
+  ]
+
+  count = var.enable_argocd_bootstrap ? 1 : 0
+
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = aws_iam_role.argocd.arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
 }
 
 ###########################

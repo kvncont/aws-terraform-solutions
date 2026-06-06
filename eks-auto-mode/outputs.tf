@@ -11,6 +11,7 @@ output "cluster_endpoint" {
 output "cluster_certificate_authority" {
   description = "Certificado CA del cluster EKS"
   value       = aws_eks_cluster.this.certificate_authority[0].data
+  sensitive   = true
 }
 
 output "cluster_version" {
@@ -51,4 +52,14 @@ output "vpc_id" {
 output "subnet_ids" {
   description = "Subnets efectivas usadas por el cluster"
   value       = local.network_subnet_ids
+}
+
+output "eks_kubeconfig_command" {
+  description = "Comando para configurar kubectl contra el cluster EKS"
+  value       = "aws eks update-kubeconfig --region ${var.deploy_region} --name ${aws_eks_cluster.this.name}"
+}
+
+output "argocd_url" {
+  description = "URL de acceso a ArgoCD"
+  value       = aws_eks_capability.argocd[0].configuration[0].argo_cd[0].server_url
 }
