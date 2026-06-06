@@ -137,12 +137,10 @@ data "aws_iam_policy_document" "eks_automode_policy" {
   }
 }
 
-resource "aws_iam_policy" "automode_policy" {
+resource "aws_iam_role_policy" "automode_policy" {
   name   = local.iam_policy_automode_name
+  role   = aws_iam_role.eks_service_role.id
   policy = data.aws_iam_policy_document.eks_automode_policy.json
-  tags = {
-    Name = local.iam_policy_automode_name
-  }
 }
 
 resource "aws_iam_role_policy_attachments_exclusive" "eks_service_attach" {
@@ -154,7 +152,6 @@ resource "aws_iam_role_policy_attachments_exclusive" "eks_service_attach" {
     "arn:aws:iam::aws:policy/AmazonEKSBlockStoragePolicy",
     "arn:aws:iam::aws:policy/AmazonEKSLoadBalancingPolicy",
     "arn:aws:iam::aws:policy/AmazonEKSNetworkingPolicy",
-    aws_iam_policy.automode_policy.arn
   ]
 }
 
