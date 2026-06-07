@@ -48,14 +48,14 @@ resource "kubernetes_secret_v1" "argocd" {
   count = var.enable_argocd_bootstrap ? 1 : 0
 
   metadata {
-    name      = local.cluster_name
+    name      = local.eks_cluster_name
     namespace = "argocd"
     labels = {
       "argocd.argoproj.io/secret-type" = "cluster"
     }
   }
   data = {
-    name    = local.cluster_name
+    name    = local.eks_cluster_name
     server  = aws_eks_cluster.this.arn
     project = "default"
   }

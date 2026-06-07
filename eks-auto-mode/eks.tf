@@ -2,11 +2,15 @@
 ##### EKS Cluster (Auto Mode)
 ###########################
 
+data "aws_eks_cluster_versions" "this" {
+  default_only = true
+}
+
 resource "aws_eks_cluster" "this" {
   depends_on = [aws_cloudwatch_log_group.eks_cluster]
 
-  name    = local.cluster_name
-  version = var.cluster_version
+  name    = local.eks_cluster_name
+  version = local.eks_cluster_version
 
   role_arn = aws_iam_role.eks_service_role.arn
 
@@ -57,7 +61,7 @@ resource "aws_eks_cluster" "this" {
   ]
 
   tags = {
-    Name = local.cluster_name
+    Name = local.eks_cluster_name
   }
 }
 
