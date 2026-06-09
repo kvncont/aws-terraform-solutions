@@ -1,0 +1,17 @@
+applications:
+  core:
+    project: core
+    namespace: argocd
+    source:
+      repoURL: https://github.com/kvncont/k8s
+      targetRevision: main
+      path: core/overlays/dev
+    destination:
+      server: ${cluster_server}
+      # namespace: default
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true

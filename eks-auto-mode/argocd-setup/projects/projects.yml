@@ -8,7 +8,7 @@ projects:
       - "*"
     destinations:
       - server: ${cluster_server}
-        namespace: default
+        namespace: "*"
     clusterResourceWhitelist:
       - group: "*"
         kind: "*"
@@ -22,7 +22,21 @@ projects:
       - "*"
     destinations:
       - server: ${cluster_server}
-        namespace: default
+        namespace: "*"
+    clusterResourceWhitelist:
+      - group: "*"
+        kind: "*"
+
+  core:
+    namespace: argocd
+    description: Core project
+    sourceNamespaces:
+      - argocd
+    sourceRepos:
+      - "*"
+    destinations:
+      - server: ${cluster_server}
+        namespace: "*"
     clusterResourceWhitelist:
       - group: "*"
         kind: "*"

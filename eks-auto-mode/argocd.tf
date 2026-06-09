@@ -64,7 +64,7 @@ resource "kubernetes_secret_v1" "argocd" {
 }
 
 # Configura el acceso a un repo privado de GitHub usando una GitHub App
-resource "kubernetes_secret_v1" "argocd_github_app_repo" {
+resource "kubernetes_secret_v1" "ms_control_plane_repo" {
   depends_on = [
     aws_eks_capability.argocd[0]
   ]
@@ -72,7 +72,7 @@ resource "kubernetes_secret_v1" "argocd_github_app_repo" {
   count = var.enable_argocd_bootstrap ? 1 : 0
 
   metadata {
-    name      = "repo-github-app"
+    name      = "ms-control-plane-repo"
     namespace = "argocd"
     labels = {
       "argocd.argoproj.io/secret-type" = "repository"
@@ -90,10 +90,37 @@ resource "kubernetes_secret_v1" "argocd_github_app_repo" {
   type = "Opaque"
 }
 
+# Configura el acceso a un repo privado de GitHub usando una GitHub App
+resource "kubernetes_secret_v1" "k8s_repo" {
+  depends_on = [
+    aws_eks_capability.argocd[0]
+  ]
+
+  count = var.enable_argocd_bootstrap ? 1 : 0
+
+  metadata {
+    name      = "k8s-repo"
+    namespace = "argocd"
+    labels = {
+      "argocd.argoproj.io/secret-type" = "repository"
+    }
+  }
+
+  data = {
+    type                    = "git"
+    url                     = "https://github.com/kvncont/k8s"
+    githubAppID             = var.github_app_id
+    githubAppInstallationID = var.github_app_installation_id
+    githubAppPrivateKey     = var.github_app_private_key
+  }
+
+  type = "Opaque"
+}
+
 resource "helm_release" "projects" {
   depends_on = [
     aws_eks_capability.argocd[0],
-    kubernetes_secret_v1.argocd_github_app_repo[0]
+    kubernetes_secret_v1.ms_control_plane_repo[0]
   ]
 
   count = var.enable_argocd_bootstrap ? 1 : 0
@@ -104,47 +131,48 @@ resource "helm_release" "projects" {
   namespace  = "argocd"
 
   values = [
-    templatefile("${path.module}/argo/projects/projects.yml", {
+    templatefile("${path.module}/argocd-setup/projects/projects.yml", {
       cluster_server = aws_eks_cluster.this.arn
     })
   ]
 }
 
-resource "helm_release" "controller_1" {
+resource "helm_release" "core" {
   depends_on = [
     helm_release.projects[0],
-    kubernetes_secret_v1.argocd_github_app_repo[0]
+    kubernetes_secret_v1.ms_control_plane_repo[0]
   ]
 
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  name       = "controller-1"
+  name       = "core"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argocd-apps"
   namespace  = "argocd"
 
   values = [
-    templatefile("${path.module}/argo/application/controller-1.yml", {
+    templatefile("${path.module}/argocd-setup/application/core.yml", {
       cluster_server = aws_eks_cluster.this.arn
     })
   ]
 }
 
-resource "helm_release" "microservices" {
+resource "helm_release" "apps" {
   depends_on = [
     helm_release.projects[0],
-    kubernetes_secret_v1.argocd_github_app_repo[0]
+    kubernetes_secret_v1.ms_control_plane_repo[0],
+    helm_release.core[0]
   ]
 
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  name       = "microservices"
+  name       = "apps"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argocd-apps"
   namespace  = "argocd"
 
   values = [
-    templatefile("${path.module}/argo/applicationset/microservices.yml", {
+    templatefile("${path.module}/argocd-setup/applicationset/apps.yml", {
       cluster_server = aws_eks_cluster.this.arn
     })
   ]

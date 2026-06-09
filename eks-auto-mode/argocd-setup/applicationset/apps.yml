@@ -1,0 +1,33 @@
+applicationsets:
+  apps:
+    generators:
+      - git:
+          repoURL: https://github.com/kvncont/k8s
+          revision: main
+          directories:
+            - path: apps/*
+    template:
+      metadata:
+        name: "{{path.basename}}"
+      spec:
+        project: backends
+        sources:
+          - repoURL: https://github.com/kvncont/ms-control-plane
+            path: ./
+            targetRevision: main
+            helm:
+              valueFiles:
+                - $values/apps/{{path.basename}}/values.yml
+                - $values/apps/{{path.basename}}/values-dev.yml
+          - repoURL: https://github.com/kvncont/k8s
+            targetRevision: main
+            ref: values
+        destination:
+          server: ${cluster_server}
+          namespace: backends
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=true
