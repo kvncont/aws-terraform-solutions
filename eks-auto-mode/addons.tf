@@ -99,3 +99,25 @@ resource "aws_eks_addon" "secrets_store_csi_provider_aws" {
   resolve_conflicts_on_create = "OVERWRITE"
 }
 
+###########################
+##### EFS CSI Driver
+###########################
+
+data "aws_eks_addon_version" "efs_csi_driver" {
+  addon_name         = "aws-efs-csi-driver"
+  kubernetes_version = aws_eks_cluster.this.version
+  most_recent        = true
+}
+
+resource "aws_eks_addon" "efs_csi_driver" {
+  depends_on = [
+    aws_eks_pod_identity_association.efs_csi_driver
+  ]
+
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "aws-efs-csi-driver"
+  addon_version               = data.aws_eks_addon_version.efs_csi_driver.version
+  resolve_conflicts_on_update = "OVERWRITE"
+  resolve_conflicts_on_create = "OVERWRITE"
+}
+
