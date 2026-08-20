@@ -10,6 +10,7 @@ locals {
   iam_role_eks_oidc_name     = "iam-rol-${local.project_name}-eks-oidc"
   iam_role_argocd_name       = "iam-rol-${local.project_name}-argocd"
   iam_role_cloudwatch_agent  = "iam-rol-${local.project_name}-cloudwatch-agent"
+  iam_role_efs_csi_driver    = "iam-rol-${local.project_name}-efs-csi-driver"
   eks_capability_argocd_name = "eks-capability-${local.project_name}-argocd"
   eks_cluster_log_group_name = "/aws/eks/${local.eks_cluster_name}/cluster"
   eks_cluster_version        = var.cluster_version != null ? var.cluster_version : data.aws_eks_cluster_versions.this.cluster_versions[0].cluster_version
