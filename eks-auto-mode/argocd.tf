@@ -153,6 +153,8 @@ resource "helm_release" "core" {
   values = [
     templatefile("${path.module}/argocd-setup/application/core.yml", {
       cluster_server = aws_eks_cluster.this.arn
+      efs_id         = aws_efs_file_system.this.id
+      s3files_id     = aws_s3files_file_system.this.id
     })
   ]
 }

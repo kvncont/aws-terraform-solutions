@@ -202,53 +202,48 @@ resource "aws_iam_openid_connect_provider" "eks_cluster" {
   }
 }
 
-data "aws_iam_policy_document" "eks_cluster_assume_role_policy" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    effect  = "Allow"
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(aws_iam_openid_connect_provider.eks_cluster.url, "https://", "")}:sub"
-      values   = ["system:serviceaccount:kube-system:aws-node"]
-    }
-
-    principals {
-      identifiers = [aws_iam_openid_connect_provider.eks_cluster.arn]
-      type        = "Federated"
-    }
-  }
-}
-
 resource "aws_iam_role" "eks_cluster_oidc" {
-  assume_role_policy = data.aws_iam_policy_document.eks_cluster_assume_role_policy.json
-  name               = local.iam_role_eks_oidc_name
+  name = local.iam_role_eks_oidc_name
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = aws_iam_openid_connect_provider.eks_cluster.arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${replace(aws_iam_openid_connect_provider.eks_cluster.url, "https://", "")}:sub" = "system:serviceaccount:kube-system:aws-node"
+          }
+        }
+      }
+    ]
+  })
 }
 
 ###########################
 ##### ArgoCD Pod Identity
 ###########################
 
-data "aws_iam_policy_document" "argocd_assume" {
-  statement {
-    effect = "Allow"
-    principals {
-      type        = "Service"
-      identifiers = ["capabilities.eks.amazonaws.com"]
-    }
-    actions = [
-      "sts:AssumeRole",
-      "sts:TagSession"
-    ]
-  }
-}
-
 resource "aws_iam_role" "argocd" {
-  name               = local.iam_role_argocd_name
-  assume_role_policy = data.aws_iam_policy_document.argocd_assume.json
-  tags = {
-    Name = local.iam_role_argocd_name
-  }
+  name = local.iam_role_argocd_name
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "capabilities.eks.amazonaws.com"
+        }
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession"
+        ]
+      }
+    ]
+  })
 }
 
 # EKS crea automaticamente un Access Entry para el Capability Role cuando se
@@ -272,10 +267,10 @@ resource "aws_eks_access_policy_association" "argocd_cluster_admin" {
 }
 
 ###########################
-##### CloudWatch Agent Pod Identity
+##### Policy for pod identities (CloudWatch Agent, EFS CSI Driver)
 ###########################
 
-data "aws_iam_policy_document" "cloudwatch_agent_assume" {
+data "aws_iam_policy_document" "pod_identity_assume" {
   statement {
     effect = "Allow"
     principals {
@@ -289,9 +284,13 @@ data "aws_iam_policy_document" "cloudwatch_agent_assume" {
   }
 }
 
+###########################
+##### CloudWatch Agent Pod Identity
+###########################
+
 resource "aws_iam_role" "cloudwatch_agent" {
   name               = local.iam_role_cloudwatch_agent
-  assume_role_policy = data.aws_iam_policy_document.cloudwatch_agent_assume.json
+  assume_role_policy = data.aws_iam_policy_document.pod_identity_assume.json
 }
 
 resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
@@ -307,30 +306,26 @@ resource "aws_eks_pod_identity_association" "cloudwatch_agent" {
 }
 
 ###########################
-##### EFS CSI Driver Pod Identity
+##### EFS CSI Driver Controller Pod Identity
 ###########################
-
-data "aws_iam_policy_document" "efs_csi_driver_assume" {
-  statement {
-    effect = "Allow"
-    principals {
-      type        = "Service"
-      identifiers = ["pods.eks.amazonaws.com"]
-    }
-    actions = [
-      "sts:AssumeRole",
-      "sts:TagSession"
-    ]
-  }
-}
 
 resource "aws_iam_role" "efs_csi_driver" {
   name               = local.iam_role_efs_csi_driver
-  assume_role_policy = data.aws_iam_policy_document.efs_csi_driver_assume.json
+  assume_role_policy = data.aws_iam_policy_document.pod_identity_assume.json
 }
 
 resource "aws_iam_role_policy_attachment" "efs_csi_driver" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
+  role       = aws_iam_role.efs_csi_driver.name
+}
+
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_s3files" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonS3FilesCSIDriverPolicy"
+  role       = aws_iam_role.efs_csi_driver.name
+}
+
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_s3files_custom" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FilesClientFullAccess"
   role       = aws_iam_role.efs_csi_driver.name
 }
 
@@ -339,4 +334,147 @@ resource "aws_eks_pod_identity_association" "efs_csi_driver" {
   namespace       = "kube-system"
   service_account = "efs-csi-controller-sa"
   role_arn        = aws_iam_role.efs_csi_driver.arn
+}
+
+###########################
+##### EFS CSI Driver Node Pod Identity
+###########################
+
+resource "aws_iam_role" "efs_csi_driver_node" {
+  name               = "iam-role-${local.project_name}-efs-csi-driver-node"
+  assume_role_policy = data.aws_iam_policy_document.pod_identity_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_node_s3files_custom" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FilesClientFullAccess"
+  role       = aws_iam_role.efs_csi_driver_node.name
+}
+
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_node_s3_readonly" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+  role       = aws_iam_role.efs_csi_driver_node.name
+}
+
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_node_efs_utils" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonElasticFileSystemsUtils"
+  role       = aws_iam_role.efs_csi_driver_node.name
+}
+
+resource "aws_eks_pod_identity_association" "efs_csi_driver_node" {
+  cluster_name    = aws_eks_cluster.this.name
+  namespace       = "kube-system"
+  service_account = "efs-csi-node-sa"
+  role_arn        = aws_iam_role.efs_csi_driver_node.arn
+}
+
+###########################
+##### S3Files Role
+###########################
+
+resource "aws_iam_role" "s3files" {
+  name = "iam-role-${local.project_name}-s3files"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "elasticfilesystem.amazonaws.com"
+        }
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession"
+        ]
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:s3files:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:file-system/*"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "s3files_permissions" {
+  name = "iam-policy-${local.project_name}-s3files"
+  role = aws_iam_role.s3files.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "S3BucketPermissions"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket*"
+        ]
+        Resource = aws_s3_bucket.this.arn
+        Condition = {
+          StringEquals = {
+            "aws:ResourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      },
+      {
+        Sid    = "S3ObjectPermissions"
+        Effect = "Allow"
+        Action = [
+          "s3:AbortMultipartUpload",
+          "s3:DeleteObject*",
+          "s3:GetObject*",
+          "s3:List*",
+          "s3:PutObject*"
+        ]
+        Resource = "${aws_s3_bucket.this.arn}/*"
+      },
+      {
+        Sid    = "UseKmsKeyWithS3Files"
+        Effect = "Allow"
+        Action = [
+          "kms:GenerateDataKey",
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncryptFrom",
+          "kms:ReEncryptTo"
+        ]
+        Resource = "arn:aws:kms:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:*"
+      },
+      {
+        Sid    = "EventBridgeManage"
+        Effect = "Allow"
+        Action = [
+          "events:DeleteRule",
+          "events:DisableRule",
+          "events:EnableRule",
+          "events:PutRule",
+          "events:PutTargets",
+          "events:RemoveTargets"
+        ]
+        Condition = {
+          StringEquals = {
+            "events:ManagedBy" = "elasticfilesystem.amazonaws.com"
+          }
+        }
+        Resource = [
+          "arn:aws:events:*:*:rule/DO-NOT-DELETE-S3-Files*"
+        ]
+      },
+      {
+        Sid    = "EventBridgeRead"
+        Effect = "Allow"
+        Action = [
+          "events:DescribeRule",
+          "events:ListRuleNamesByTarget",
+          "events:ListRules",
+          "events:ListTargetsByRule"
+        ]
+        Resource = [
+          "arn:aws:events:*:*:rule/*"
+        ]
+      }
+    ]
+  })
 }

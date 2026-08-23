@@ -11,41 +11,11 @@ resource "aws_efs_file_system" "this" {
   }
 }
 
-resource "aws_security_group" "efs" {
-  name        = "secgrp-${local.project_name}-efs"
-  description = "Security group for EFS mount targets"
-  vpc_id      = local.network_vpc_id
-
-  tags = {
-    Name = "secgrp-${local.project_name}-efs"
-  }
-}
-
-resource "aws_security_group_rule" "efs_ingress_nfs_from_nodes" {
-  type                     = "ingress"
-  from_port                = 2049
-  to_port                  = 2049
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.efs.id
-  source_security_group_id = aws_security_group.shared_node_sg.id
-  description              = "Allow NFS from EKS nodes"
-}
-
-resource "aws_security_group_rule" "efs_egress_all" {
-  type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.efs.id
-  description       = "Allow all outbound traffic"
-}
-
 resource "aws_efs_mount_target" "this" {
-  for_each = toset(local.network_subnet_ids)
+  count = length(local.network_subnet_ids)
 
   file_system_id  = aws_efs_file_system.this.id
-  subnet_id       = each.value
+  subnet_id       = local.network_subnet_ids[count.index]
   security_groups = [aws_security_group.efs.id]
 }
 

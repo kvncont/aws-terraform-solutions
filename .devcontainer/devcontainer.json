@@ -1,11 +1,12 @@
 {
-  "name": "Terraform Module",
+  "name": "AWS Solutions Lab",
   "image": "mcr.microsoft.com/devcontainers/base:jammy",
   "features": {
     "ghcr.io/devcontainers/features/aws-cli:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/terraform:1": {},
-    "ghcr.io/devcontainers-extra/features/terraform-docs:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1.1.1": {},
+    "ghcr.io/devcontainers/features/terraform:1.5.0": {},
+    "ghcr.io/devcontainers-extra/features/terraform-docs:1": {},
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {}
   },
   "customizations": {
     "vscode": {

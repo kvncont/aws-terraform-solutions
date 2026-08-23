@@ -83,3 +83,18 @@ output "argocd_url" {
   description = "URL de acceso a ArgoCD"
   value       = aws_eks_capability.argocd[0].configuration[0].argo_cd[0].server_url
 }
+
+output "s3_bucket_name" {
+  description = "Nombre del bucket S3 para archivos bootstrap"
+  value       = aws_s3_bucket.this.bucket
+}
+
+output "s3_bucket_arn" {
+  description = "ARN del bucket S3 para archivos bootstrap"
+  value       = aws_s3_bucket.this.arn
+}
+
+output "s3_files_id" {
+  description = "ID del S3 Files"
+  value       = aws_s3files_file_system.this.id
+}
