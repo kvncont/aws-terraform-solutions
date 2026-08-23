@@ -12,7 +12,7 @@ applicationsets:
       spec:
         project: backends
         sources:
-          - repoURL: https://github.com/kvncont/ms-control-plane
+          - repoURL: https://github.com/kvncont/helm-charts
             path: ./
             targetRevision: main
             helm:
@@ -26,8 +26,8 @@ applicationsets:
           server: ${cluster_server}
           namespace: backends
         syncPolicy:
-          automated:
-            prune: true
-            selfHeal: true
+          # automated:
+          #   prune: true
+          #   selfHeal: true
           syncOptions:
             - CreateNamespace=true
