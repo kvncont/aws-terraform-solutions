@@ -6,6 +6,22 @@ applications:
       repoURL: https://github.com/kvncont/k8s
       targetRevision: main
       path: core/overlays/dev
+      kustomize:
+        patches:
+          - target:
+              kind: StorageClass
+              name: efs-sc
+            patch: |-
+              - op: replace
+                path: /parameters/fileSystemId
+                value: ${efs_id}
+          - target:
+              kind: StorageClass
+              name: s3files-sc
+            patch: |-
+              - op: replace
+                path: /parameters/fileSystemId
+                value: ${s3files_id}
     destination:
       server: ${cluster_server}
       # namespace: default
