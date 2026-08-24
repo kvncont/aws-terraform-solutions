@@ -111,7 +111,8 @@ data "aws_eks_addon_version" "efs_csi_driver" {
 
 resource "aws_eks_addon" "efs_csi_driver" {
   depends_on = [
-    aws_eks_pod_identity_association.efs_csi_driver
+    aws_eks_pod_identity_association.efs_csi_driver_controller,
+    aws_eks_pod_identity_association.efs_csi_driver_node
   ]
 
   cluster_name                = aws_eks_cluster.this.name

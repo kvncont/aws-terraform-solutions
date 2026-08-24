@@ -64,7 +64,7 @@ resource "kubernetes_secret_v1" "argocd" {
 }
 
 # Configura el acceso a un repo privado de GitHub usando una GitHub App
-resource "kubernetes_secret_v1" "ms_control_plane_repo" {
+resource "kubernetes_secret_v1" "helm_charts_repo" {
   depends_on = [
     aws_eks_capability.argocd[0]
   ]
@@ -120,7 +120,7 @@ resource "kubernetes_secret_v1" "k8s_repo" {
 resource "helm_release" "projects" {
   depends_on = [
     aws_eks_capability.argocd[0],
-    kubernetes_secret_v1.ms_control_plane_repo[0]
+    kubernetes_secret_v1.helm_charts_repo[0]
   ]
 
   count = var.enable_argocd_bootstrap ? 1 : 0
@@ -140,7 +140,7 @@ resource "helm_release" "projects" {
 resource "helm_release" "core" {
   depends_on = [
     helm_release.projects[0],
-    kubernetes_secret_v1.ms_control_plane_repo[0]
+    kubernetes_secret_v1.helm_charts_repo[0]
   ]
 
   count = var.enable_argocd_bootstrap ? 1 : 0
@@ -162,7 +162,7 @@ resource "helm_release" "core" {
 resource "helm_release" "apps" {
   depends_on = [
     helm_release.projects[0],
-    kubernetes_secret_v1.ms_control_plane_repo[0],
+    kubernetes_secret_v1.helm_charts_repo[0],
     helm_release.core[0]
   ]
 

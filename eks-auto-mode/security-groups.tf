@@ -87,12 +87,12 @@ resource "aws_security_group_rule" "egress_node" {
 ###########################
 
 resource "aws_security_group" "efs" {
-  name        = "secgrp-${local.project_name}-efs"
+  name        = local.sg_efs_name
   description = "Security group for EFS mount targets"
   vpc_id      = local.network_vpc_id
 
   tags = {
-    Name = "secgrp-${local.project_name}-efs"
+    Name = local.sg_efs_name
   }
 }
 

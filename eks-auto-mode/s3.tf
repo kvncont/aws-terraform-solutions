@@ -3,7 +3,7 @@
 ###########################
 
 resource "aws_s3_bucket" "this" {
-  bucket        = "s3-${local.project_name}-${data.aws_caller_identity.current.account_id}-${var.deploy_region}"
+  bucket        = local.s3_bucket_name
   force_destroy = true
 }
 

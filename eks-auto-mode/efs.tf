@@ -3,11 +3,11 @@
 ###########################
 
 resource "aws_efs_file_system" "this" {
-  creation_token = "efs-${local.project_name}"
+  creation_token = local.efs_name
   encrypted      = true
 
   tags = {
-    Name = "efs-${local.project_name}"
+    Name = local.efs_name
   }
 }
 
@@ -38,6 +38,6 @@ resource "aws_efs_access_point" "this" {
   }
 
   tags = {
-    Name = "efs-ap-${local.project_name}"
+    Name = local.efs_ap_name
   }
 }

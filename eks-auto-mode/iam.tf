@@ -289,7 +289,7 @@ data "aws_iam_policy_document" "pod_identity_assume" {
 ###########################
 
 resource "aws_iam_role" "cloudwatch_agent" {
-  name               = local.iam_role_cloudwatch_agent
+  name               = local.iam_role_cloudwatch_agent_name
   assume_role_policy = data.aws_iam_policy_document.pod_identity_assume.json
 }
 
@@ -309,31 +309,31 @@ resource "aws_eks_pod_identity_association" "cloudwatch_agent" {
 ##### EFS CSI Driver Controller Pod Identity
 ###########################
 
-resource "aws_iam_role" "efs_csi_driver" {
-  name               = local.iam_role_efs_csi_driver
+resource "aws_iam_role" "efs_csi_driver_controller" {
+  name               = local.iam_role_efs_csi_driver_controller_name
   assume_role_policy = data.aws_iam_policy_document.pod_identity_assume.json
 }
 
-resource "aws_iam_role_policy_attachment" "efs_csi_driver" {
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_controller_efs_csi_driver_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
-  role       = aws_iam_role.efs_csi_driver.name
+  role       = aws_iam_role.efs_csi_driver_controller.name
 }
 
-resource "aws_iam_role_policy_attachment" "efs_csi_driver_s3files" {
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_controller_s3files_csi_driver_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonS3FilesCSIDriverPolicy"
-  role       = aws_iam_role.efs_csi_driver.name
+  role       = aws_iam_role.efs_csi_driver_controller.name
 }
 
-resource "aws_iam_role_policy_attachment" "efs_csi_driver_s3files_custom" {
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_controller_s3files_client_full_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FilesClientFullAccess"
-  role       = aws_iam_role.efs_csi_driver.name
+  role       = aws_iam_role.efs_csi_driver_controller.name
 }
 
-resource "aws_eks_pod_identity_association" "efs_csi_driver" {
+resource "aws_eks_pod_identity_association" "efs_csi_driver_controller" {
   cluster_name    = aws_eks_cluster.this.name
   namespace       = "kube-system"
   service_account = "efs-csi-controller-sa"
-  role_arn        = aws_iam_role.efs_csi_driver.arn
+  role_arn        = aws_iam_role.efs_csi_driver_controller.arn
 }
 
 ###########################
@@ -341,11 +341,11 @@ resource "aws_eks_pod_identity_association" "efs_csi_driver" {
 ###########################
 
 resource "aws_iam_role" "efs_csi_driver_node" {
-  name               = "iam-role-${local.project_name}-efs-csi-driver-node"
+  name               = local.iam_role_efs_csi_driver_node_name
   assume_role_policy = data.aws_iam_policy_document.pod_identity_assume.json
 }
 
-resource "aws_iam_role_policy_attachment" "efs_csi_driver_node_s3files_custom" {
+resource "aws_iam_role_policy_attachment" "efs_csi_driver_node_s3files_full_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FilesClientFullAccess"
   role       = aws_iam_role.efs_csi_driver_node.name
 }
@@ -372,7 +372,7 @@ resource "aws_eks_pod_identity_association" "efs_csi_driver_node" {
 ###########################
 
 resource "aws_iam_role" "s3files" {
-  name = "iam-role-${local.project_name}-s3files"
+  name = local.iam_role_s3files_name
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -399,7 +399,7 @@ resource "aws_iam_role" "s3files" {
 }
 
 resource "aws_iam_role_policy" "s3files_permissions" {
-  name = "iam-policy-${local.project_name}-s3files"
+  name = local.iam_policy_s3files_name
   role = aws_iam_role.s3files.id
 
   policy = jsonencode({
